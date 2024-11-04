@@ -3,13 +3,12 @@ cmake_minimum_required(VERSION 3.10)
 # Название проекта
 project(LAB_1)
 
-# Установка стандарта C
 set(CMAKE_C_STANDARD 99)
 
-# Добавление исполняемого файла для родительского процесса
-add_executable(parent ./LAB_1/parent.c)
+add_executable(parent ./LAB_1/src/main.c ../LAB_1/src/core.c)
 
-# Добавление исполняемого файла для дочернего процесса
-add_executable(child ./LAB_1/child.c)
+add_executable(child ./LAB_1/src/child.c)
 
-# Включение директории include для поиска заголовочных файлов
+target_include_directories(parent PRIVATE ./inc)
+
+target_include_directories(parent PRIVATE ./inc)

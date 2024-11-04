@@ -1,4 +1,0 @@
-/Users/glebvorobev/Documents/Projects/OS/build/CMakeFiles/parent.dir
-/Users/glebvorobev/Documents/Projects/OS/build/CMakeFiles/child.dir
-/Users/glebvorobev/Documents/Projects/OS/build/CMakeFiles/edit_cache.dir
-/Users/glebvorobev/Documents/Projects/OS/build/CMakeFiles/rebuild_cache.dir

@@ -1,26 +1,4 @@
-#include <stdint.h>
-#include <stdbool.h>
-#include <stdlib.h>
-#include <unistd.h>
-#include <fcntl.h>
-#include <stdio.h>
-
-int is_prime(int num) {
-    if (num <= 1)
-        return 0;
-
-    if (num <= 3)
-        return 1;
-
-    if (num % 2 == 0 || num % 3 == 0)
-        return 0;
-		
-    for (int i = 5; i * i <= num; i += 6)
-        if (num % i == 0 || num % (i + 2) == 0)
-            return 0;
-
-    return 1;
-}
+#include "../inc/child.h"
 
 int main() {
     char buf[4096];
@@ -59,4 +37,21 @@ int main() {
     }
 
     return 0;
+}
+
+int is_prime(int num) {
+    if (num <= 1)
+        return 0;
+
+    if (num <= 3)
+        return 1;
+
+    if (num % 2 == 0 || num % 3 == 0)
+        return 0;
+		
+    for (int i = 5; i * i <= num; i += 6)
+        if (num % i == 0 || num % (i + 2) == 0)
+            return 0;
+
+    return 1;
 }
