@@ -1,0 +1,7 @@
+31221: I'm a parent, my child has PID 31222
+31222: I'm a child
+64
+44
+22
+26
+10
