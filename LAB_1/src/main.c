@@ -1,23 +1,28 @@
 #include "../inc/parent.h"
 
-int main(int argc, char **argv) {
-    if (argc == 1) {
-        char msg[1024];
-        uint32_t len = snprintf(msg, sizeof(msg) - 1, "usage: %s filename\n", argv[0]);
-        write(STDERR_FILENO, msg, len);
-        exit(EXIT_SUCCESS);
+void get_input(char *input, size_t size);
+
+int main() {
+    char progpath[4096];
+    get_program_path(progpath, sizeof(progpath));
+
+    char file[4096];
+
+    {
+        char msg[32];
+        const int32_t length = snprintf(msg, sizeof(msg), "Print file name:\n");
+        write(STDOUT_FILENO, msg, length);    
     }
 
-    char progpath[1024];
-    get_program_path(progpath, sizeof(progpath));
+    get_input(file, sizeof(file));
 
     int channel[2];
     create_pipe(channel);
 
-    const pid_t child = fork();
-
+    const pid_t child = fork();    
+    
     switch (child) {
-    case -1:
+    case -1: 
         {
             const char msg[] = "error: failed to spawn new process\n";
             write(STDERR_FILENO, msg, sizeof(msg));
@@ -26,7 +31,7 @@ int main(int argc, char **argv) {
         break;
 
     case 0:
-        handle_child_process(channel, progpath, argv[1]);
+        handle_child_process(channel, progpath, file);
         break;
 
     default:
@@ -35,4 +40,19 @@ int main(int argc, char **argv) {
     }
 
     return 0;
+}
+
+void get_input(char *input, size_t size) 
+{
+    if (fgets(input, size, stdin) == NULL) {   
+        char msg[32];
+        const int32_t length = snprintf(msg, sizeof(msg), "error: failed to read input\n");
+        write(STDERR_FILENO, msg, sizeof(msg));
+        exit(EXIT_FAILURE);
+    }
+
+    size_t len = strlen(input);
+    if (len > 0 && input[len - 1] == '\n') {
+        input[len - 1] = '\0';
+    }
 }
