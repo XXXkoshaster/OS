@@ -19,6 +19,13 @@ int main() {
     int channel[2];
     create_pipe(channel);
 
+    int file_fd = open(file, O_RDONLY);
+    if (file_fd == -1) {
+        const char msg[] = "error: failed to open requested file\n";
+        write(STDERR_FILENO, msg, sizeof(msg));
+        exit(EXIT_FAILURE);
+    }
+
     const pid_t child = fork();    
     
     switch (child) {
@@ -31,7 +38,7 @@ int main() {
         break;
 
     case 0:
-        handle_child_process(channel, progpath, file);
+        handle_child_process(channel, progpath, file_fd);
         break;
 
     default:
@@ -39,6 +46,7 @@ int main() {
         break;
     }
 
+    close(file_fd);
     return 0;
 }
 

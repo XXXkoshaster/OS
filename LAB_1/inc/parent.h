@@ -15,7 +15,7 @@
 
 void get_program_path(char *progpath, size_t size);
 void create_pipe(int channel[2]);
-void handle_child_process(int channel[2], char *progpath, char *filename);
+void handle_child_process(int channel[2], char *progpath, int file_fd);
 void handle_parent_process(int channel[2], pid_t child);
 
 #endif

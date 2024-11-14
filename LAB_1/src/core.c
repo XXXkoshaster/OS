@@ -22,7 +22,7 @@ void create_pipe(int channel[2]) {
     }
 }
 
-void handle_child_process(int channel[2], char *progpath, char *filename) {
+void handle_child_process(int channel[2], char *progpath, int file_fd) {
     pid_t pid = getpid();
     {
         char msg[64];
@@ -30,15 +30,8 @@ void handle_child_process(int channel[2], char *progpath, char *filename) {
         write(STDOUT_FILENO, msg, length);
     }
 
-    int file = open(filename, O_RDONLY);
-    if (file == -1) {
-        const char msg[] = "error: failed to open requested file\n";
-        write(STDERR_FILENO, msg, sizeof(msg));
-        exit(EXIT_FAILURE);
-    }
-
-    dup2(file, STDIN_FILENO);
-    close(file);
+    dup2(file_fd, STDIN_FILENO);
+    close(file_fd);
 
     dup2(channel[STDOUT_FILENO], STDOUT_FILENO);
     close(channel[STDOUT_FILENO]);
@@ -46,7 +39,7 @@ void handle_child_process(int channel[2], char *progpath, char *filename) {
     char path[4096];
     snprintf(path, sizeof(path) - 1, "%s/%s", progpath, CLIENT_PROGRAM_NAME);
 
-    char* const args[] = {CLIENT_PROGRAM_NAME, filename, NULL};
+    char* const args[] = {CLIENT_PROGRAM_NAME, NULL};
     int32_t status = execv(path, args);
 
     if (status == -1) {

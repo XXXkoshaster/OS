@@ -1,7 +1,7 @@
 #include "../inc/child.h"
 
 int main() {
-    char buf[4096];
+    char buf[256];
     int num;
     ssize_t bytes_read;
 
