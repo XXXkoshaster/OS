@@ -12,7 +12,7 @@ void get_program_path(char *progpath, size_t size) {
     if (last_slash != NULL) {
         *last_slash = '\0';
     }
-}
+}   
 
 void create_pipe(int channel[2]) {
     if (pipe(channel) == -1) {
@@ -59,7 +59,7 @@ void handle_parent_process(int channel[2], pid_t child) {
 
     close(channel[1]);
 
-    char buf[4096];
+    char buf[256];
     ssize_t bytes;
     while ((bytes = read(channel[0], buf, sizeof(buf))) > 0)
         write(STDOUT_FILENO, buf, bytes);
