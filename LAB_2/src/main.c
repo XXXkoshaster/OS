@@ -25,7 +25,7 @@ int main(int argc, char** argv)
     int* array = (int*) malloc(arr_size * sizeof(int));
 
     for (long i = 0; i < arr_size; i++)
-        array[i] = i;
+        array[i] = rand() % 1000;
 
     pthread_t threads[max_threads];
     thread_data thread_data_arr[max_threads];
@@ -53,23 +53,15 @@ int main(int argc, char** argv)
 
     clock_t start_join = clock();
 
+    int global_min = array[0];
+    int global_max = array[0];
+    
     for (int i = 0; i < max_threads; i++) {
         if (pthread_join(threads[i], NULL) != 0) {
             perror("Failed to join thread");
             exit(EXIT_FAILURE);
         }
-    }
-    
-    clock_t end_join = clock();
 
-    clock_t start = clock();
-    
-    int global_min = INT_MAX;
-    int global_max = INT_MIN;
-    
-
-    for (int i = 0; i < max_threads; i++) {
-        
         if (thread_data_arr[i].min < global_min)
             global_min = thread_data_arr[i].min;
         
@@ -77,14 +69,13 @@ int main(int argc, char** argv)
             global_max = thread_data_arr[i].max;
     }
     
-    clock_t end = clock();
+    clock_t end_join = clock();
 
     end_full = clock();
 
 
     printf("Full time: %f seconds\n", (double)(end_full - start_full) / CLOCKS_PER_SEC);
     printf("Join time: %f seconds\n", (double)(end_join - start_join) / CLOCKS_PER_SEC);
-    printf("Time of global comparing: %f seconds\n", (double)(end - start) / CLOCKS_PER_SEC);
     
     {
         char buff[INT_SIZE];
@@ -109,8 +100,8 @@ void* find_min_max(void* arg)
 
     thread_data* data = (thread_data*) arg;
 
-    data->min = INT_MAX;
-    data->max = INT_MIN;
+    data->min = data->array[data->start];
+    data->max = data->array[data->start];
 
     for (int i = data->start; i < data->end; i++)
     {
