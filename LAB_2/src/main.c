@@ -1,7 +1,14 @@
 #include "../inc/core.h"
 #include <time.h>
+#include <pthread.h>
 
 void print_array(int* arr);
+void* find_min_max(void* arg);
+
+// Мьютекс для синхронизации доступа к global_min и global_max
+pthread_mutex_t mutex;
+
+int global_min, global_max;
 
 int main(int argc, char** argv)
 {
@@ -20,10 +27,8 @@ int main(int argc, char** argv)
         write(STDERR_FILENO, msg, sizeof(msg));
         exit(EXIT_SUCCESS);
     }
-    
 
     int* array = (int*) malloc(arr_size * sizeof(int));
-
     for (long i = 0; i < arr_size; i++)
         array[i] = rand() % 1000;
 
@@ -32,11 +37,19 @@ int main(int argc, char** argv)
 
     int chunk_size = arr_size / max_threads + (arr_size % max_threads != 0);
 
+    // Инициализация мьютекса
+    if (pthread_mutex_init(&mutex, NULL) != 0) {
+        perror("Failed to initialize mutex");
+        exit(EXIT_FAILURE);
+    }
+
+    global_min = array[0];
+    global_max = array[0];
+
     clock_t start_full, end_full, start_creation, end_creation;
 
     start_full = clock();
-    for (int i = 0; i <  max_threads; i++)
-    {
+    for (int i = 0; i < max_threads; i++) {
         thread_data_arr[i].array = array;
         thread_data_arr[i].start = i * chunk_size;
         thread_data_arr[i].end = (i == max_threads - 1) ? arr_size : (i + 1) * chunk_size;
@@ -48,31 +61,19 @@ int main(int argc, char** argv)
         }
         end_creation = clock();
 
-        printf("Creattion time of %d: %f seconds\n", i, (double)(end_creation - start_creation) / CLOCKS_PER_SEC);
+        printf("Creation time of %d: %f seconds\n", i, (double)(end_creation - start_creation) / CLOCKS_PER_SEC);
     }
 
     clock_t start_join = clock();
-
-    int global_min = array[0];
-    int global_max = array[0];
-    
     for (int i = 0; i < max_threads; i++) {
         if (pthread_join(threads[i], NULL) != 0) {
             perror("Failed to join thread");
             exit(EXIT_FAILURE);
         }
-
-        if (thread_data_arr[i].min < global_min)
-            global_min = thread_data_arr[i].min;
-        
-        if (thread_data_arr[i].max > global_max)
-            global_max = thread_data_arr[i].max;
     }
-    
     clock_t end_join = clock();
 
     end_full = clock();
-
 
     printf("Full time: %f seconds\n", (double)(end_full - start_full) / CLOCKS_PER_SEC);
     printf("Join time: %f seconds\n", (double)(end_join - start_join) / CLOCKS_PER_SEC);
@@ -89,6 +90,9 @@ int main(int argc, char** argv)
         write(STDOUT_FILENO, buff, len);
     }
 
+    // Уничтожение мьютекса
+    pthread_mutex_destroy(&mutex);
+
     free(array);
  
     return 0;
@@ -100,17 +104,24 @@ void* find_min_max(void* arg)
 
     thread_data* data = (thread_data*) arg;
 
-    data->min = data->array[data->start];
-    data->max = data->array[data->start];
+    int local_min = data->array[data->start];
+    int local_max = data->array[data->start];
 
-    for (int i = data->start; i < data->end; i++)
-    {
-        if (data->array[i] > data->max)
-            data->max = data->array[i];
+    for (int i = data->start; i < data->end; i++) {
+        if (data->array[i] > local_max)
+            local_max = data->array[i];
         
-        if (data->array[i] < data->min)
-            data->min = data->array[i];
+        if (data->array[i] < local_min)
+            local_min = data->array[i];
     }
+
+    // Защита глобальных переменных с помощью мьютекса
+    pthread_mutex_lock(&mutex);
+    if (local_min < global_min)
+        global_min = local_min;
+    if (local_max > global_max)
+        global_max = local_max;
+    pthread_mutex_unlock(&mutex);
     
     clock_t end = clock();
 
