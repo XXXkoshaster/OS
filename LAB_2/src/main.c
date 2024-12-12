@@ -60,7 +60,7 @@ int main(int argc, char** argv)
             exit(EXIT_FAILURE);
         }
         end_creation = clock();
-
+    
         printf("Creation time of %d: %f seconds\n", i, (double)(end_creation - start_creation) / CLOCKS_PER_SEC);
     }
 
