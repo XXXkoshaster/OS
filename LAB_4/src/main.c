@@ -1,144 +1,46 @@
-#include "../inc/core.h"
-#include <time.h>
-#include <pthread.h>
+#include <dlfcn.h>
+#include <stdio.h>
+#include <stdlib.h>
 
-void print_array(int* arr);
-void* find_min_max(void* arg);
+typedef void* (*allocator_create_t)(void*, size_t);
+typedef void (*allocator_destroy_t)(void*);
+typedef void* (*allocator_alloc_t)(void*, size_t);
+typedef void (*allocator_free_t)(void*, void*);
 
-// Мьютекс для синхронизации доступа к global_min и global_max
-pthread_mutex_t mutex;
-
-int global_min, global_max;
-
-int main(int argc, char** argv)
-{
-    if (argc != 4) {
-        const char msg[] = "Usage: %s <array_size> <max_threads> <seed>\n";
-        write(STDERR_FILENO, msg, sizeof(msg));
-        exit(EXIT_SUCCESS);
+int main(int argc, char* argv[]) {
+    if (argc < 2) {
+        fprintf(stderr, "Usage: %s <path_to_library>\n", argv[0]);
+        return EXIT_FAILURE;
     }
 
-    long arr_size =  atoi(argv[1]);
-    int max_threads = atoi(argv[2]);
-    //unsigned int seed = atoi(argv[3]);
-
-    if (arr_size <= 0 || max_threads <= 0) {
-        const char msg[] = "Error: Array size and max threads must be positive integers.\n";
-        write(STDERR_FILENO, msg, sizeof(msg));
-        exit(EXIT_SUCCESS);
+    void* handle = dlopen(argv[1], RTLD_LAZY);
+    if (!handle) {
+        fprintf(stderr, "Failed to load library: %s\n", dlerror());
+        return EXIT_FAILURE;
     }
 
-    int* array = (int*) malloc(arr_size * sizeof(int));
-    for (long i = 0; i < arr_size; i++)
-        array[i] = rand() % 1000;
+    allocator_create_t allocator_create = (allocator_create_t)dlsym(handle, "allocator_create");
+    allocator_destroy_t allocator_destroy = (allocator_destroy_t)dlsym(handle, "allocator_destroy");
+    allocator_alloc_t allocator_alloc = (allocator_alloc_t)dlsym(handle, "allocator_alloc");
+    allocator_free_t allocator_free = (allocator_free_t)dlsym(handle, "allocator_free");
 
-    pthread_t threads[max_threads];
-    thread_data thread_data_arr[max_threads];
-
-    int chunk_size = arr_size / max_threads + (arr_size % max_threads != 0);
-
-    // Инициализация мьютекса
-    if (pthread_mutex_init(&mutex, NULL) != 0) {
-        perror("Failed to initialize mutex");
-        exit(EXIT_FAILURE);
+    if (!allocator_create || !allocator_destroy || !allocator_alloc || !allocator_free) {
+        fprintf(stderr, "Failed to load functions from library\n");
+        dlclose(handle);
+        return EXIT_FAILURE;
     }
 
-    global_min = array[0];
-    global_max = array[0];
+    size_t memory_size = 1024 * 1024;
+    void* memory = malloc(memory_size);
 
-    clock_t start_full, end_full, start_creation, end_creation;
+    void* allocator = allocator_create(memory, memory_size);
+    void* block = allocator_alloc(allocator, 128);
+    printf("Allocated block at: %p\n", block);
 
-    start_full = clock();
-    for (int i = 0; i < max_threads; i++) {
-        thread_data_arr[i].array = array;
-        thread_data_arr[i].start = i * chunk_size;
-        thread_data_arr[i].end = (i == max_threads - 1) ? arr_size : (i + 1) * chunk_size;
+    allocator_free(allocator, block);
+    allocator_destroy(allocator);
 
-        start_creation = clock();
-        if (pthread_create(&threads[i], NULL, find_min_max, &thread_data_arr[i]) != 0) {
-            perror("Failed to create thread");
-            exit(EXIT_FAILURE);
-        }
-        end_creation = clock();
-    
-        printf("Creation time of %d: %f seconds\n", i, (double)(end_creation - start_creation) / CLOCKS_PER_SEC);
-    }
-
-    clock_t start_join = clock();
-    for (int i = 0; i < max_threads; i++) {
-        if (pthread_join(threads[i], NULL) != 0) {
-            perror("Failed to join thread");
-            exit(EXIT_FAILURE);
-        }
-    }
-    clock_t end_join = clock();
-
-    end_full = clock();
-
-    printf("Full time: %f seconds\n", (double)(end_full - start_full) / CLOCKS_PER_SEC);
-    printf("Join time: %f seconds\n", (double)(end_join - start_join) / CLOCKS_PER_SEC);
-    
-    {
-        char buff[INT_SIZE];
-        int len = snprintf(buff, sizeof(buff), "Global Min: %d\n", global_min);
-        write(STDOUT_FILENO, buff, len);
-    }
-
-    {
-        char buff[INT_SIZE];
-        int len = snprintf(buff, sizeof(buff), "Global Max: %d\n", global_max);
-        write(STDOUT_FILENO, buff, len);
-    }
-
-    // Уничтожение мьютекса
-    pthread_mutex_destroy(&mutex);
-
-    free(array);
- 
-    return 0;
-}
-
-void* find_min_max(void* arg)
-{
-    clock_t start = clock();
-
-    thread_data* data = (thread_data*) arg;
-
-    int local_min = data->array[data->start];
-    int local_max = data->array[data->start];
-
-    for (int i = data->start; i < data->end; i++) {
-        if (data->array[i] > local_max)
-            local_max = data->array[i];
-        
-        if (data->array[i] < local_min)
-            local_min = data->array[i];
-    }
-
-    // Защита глобальных переменных с помощью мьютекса
-    pthread_mutex_lock(&mutex);
-    if (local_min < global_min)
-        global_min = local_min;
-    if (local_max > global_max)
-        global_max = local_max;
-    pthread_mutex_unlock(&mutex);
-    
-    clock_t end = clock();
-
-    printf("Function time: %f seconds\n", (double)(end - start) / CLOCKS_PER_SEC);
-
-    return NULL;
-}
-
-void print_array(int* arr) 
-{
-    const char msg[] = "Array:\n";
-    write(STDOUT_FILENO, msg, sizeof(msg) - 1);
-    
-    while(*arr) {
-        char buff[INT_SIZE + 1];
-        int len = snprintf(buff, sizeof(buff), "%d\n", *arr);
-        write(STDOUT_FILENO, buff, len);
-        arr++;
-    }
+    dlclose(handle);
+    free(memory);
+    return EXIT_SUCCESS;
 }

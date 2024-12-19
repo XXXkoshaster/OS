@@ -1,7 +1,7 @@
 cmake_minimum_required(VERSION 3.10)
 
 # Название проекта
-project(LAB_1)
+project(LAB_3)
 
 set(CMAKE_C_STANDARD 99)
 

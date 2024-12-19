@@ -1,66 +1,55 @@
-#include "../inc/parent.h"
+#include <stdio.h>
+#include <stdlib.h>
+#include <unistd.h>
+#include <sys/mman.h>
+#include <sys/types.h>
+#include <sys/wait.h>
+#include <fcntl.h>
+#include <semaphore.h>
+#include <string.h>
+#include "main.h"
+#include "shared_memory.h"
+#include "child.h"
 
-void get_input(char *input, size_t size);
+#define SHM_NAME "/my_shared_memory"
+#define SEM_WRITE_NAME "/my_semaphore_write"
+#define SEM_READ_NAME "/my_semaphore_read"
 
 int main() {
-    char progpath[4096];
-    get_program_path(progpath, sizeof(progpath));
+    int shm_fd;
+    SharedData *data;
 
-    char file[4096];
+    // Create shared memory
+    shm_fd = shm_open(SHM_NAME, O_CREAT | O_RDWR, 0666);
+    ftruncate(shm_fd, sizeof(SharedData));
+    data = mmap(0, sizeof(SharedData), PROT_READ | PROT_WRITE, MAP_SHARED, shm_fd, 0);
 
-    {
-        char msg[32];
-        const int32_t length = snprintf(msg, sizeof(msg), "Print file name:\n");
-        write(STDOUT_FILENO, msg, length);    
-    }
+    // Initialize semaphores
+    sem_t *sem_write = sem_open(SEM_WRITE_NAME, O_CREAT, 0666, 1);
+    sem_t *sem_read = sem_open(SEM_READ_NAME, O_CREAT, 0666, 0);
 
-    get_input(file, sizeof(file));
-
-    int channel[2];
-    create_pipe(channel);
-
-    int file_fd = open(file, O_RDONLY);
-    if (file_fd == -1) {
-        const char msg[] = "error: failed to open requested file\n";
-        write(STDERR_FILENO, msg, sizeof(msg));
+    // Create child process
+    pid_t pid = fork();
+    if (pid < 0) {
+        perror("Fork failed");
         exit(EXIT_FAILURE);
     }
 
-    const pid_t child = fork();    
-    
-    switch (child) {
-    case -1: 
-        {
-            const char msg[] = "error: failed to spawn new process\n";
-            write(STDERR_FILENO, msg, sizeof(msg));
-            exit(EXIT_FAILURE);
-        }
-        break;
-
-    case 0:
-        handle_child_process(channel, progpath, file_fd);
-        break;
-
-    default:
-        handle_parent_process(channel, child);
-        break;
+    if (pid == 0) {
+        // Child process
+        handle_child_process(data, sem_write, sem_read);
+    } else {
+        // Parent process
+        handle_parent_process(data, sem_write, sem_read, pid);
     }
 
-    close(file_fd);
+    // Cleanup
+    munmap(data, sizeof(SharedData));
+    shm_unlink(SHM_NAME);
+    sem_close(sem_write);
+    sem_close(sem_read);
+    sem_unlink(SEM_WRITE_NAME);
+    sem_unlink(SEM_READ_NAME);
+
     return 0;
-}
-
-void get_input(char *input, size_t size) 
-{
-    if (fgets(input, size, stdin) == NULL) {   
-        char msg[32];
-        const int32_t length = snprintf(msg, sizeof(msg), "error: failed to read input\n");
-        write(STDERR_FILENO, msg, sizeof(msg));
-        exit(EXIT_FAILURE);
-    }
-
-    size_t len = strlen(input);
-    if (len > 0 && input[len - 1] == '\n') {
-        input[len - 1] = '\0';
-    }
 }

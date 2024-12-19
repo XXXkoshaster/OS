@@ -1,41 +1,57 @@
 #include "../inc/child.h"
+#include "../inc/shared_memory.h"
+#include <stdio.h>
+#include <stdlib.h>
+#include <unistd.h>
+#include <string.h>
+#include <semaphore.h>
 
 int main() {
-    char buf[256];
-    int num;
-    ssize_t bytes_read;
+    int shm_fd;
+    struct shared_data *data;
 
-    while ((bytes_read = read(STDIN_FILENO, buf, sizeof(buf))) > 0) {
-        char *ptr = buf;
-        while (ptr < buf + bytes_read) {
-            char *endptr;
-            num = strtol(ptr, &endptr, 10);
+    shm_fd = shm_open(SHARED_MEMORY_NAME, O_RDONLY, 0666);
+    if (shm_fd == -1) {
+        perror("Error opening shared memory");
+        exit(EXIT_FAILURE);
+    }
 
-            if (ptr == endptr) {
-                while (ptr < buf + bytes_read && *ptr != '\n') {
-                    ptr++;
-                }
-                ptr++;
-                continue;
-            }
+    data = mmap(NULL, sizeof(struct shared_data), PROT_READ, MAP_SHARED, shm_fd, 0);
+    if (data == MAP_FAILED) {
+        perror("Error mapping shared memory");
+        exit(EXIT_FAILURE);
+    }
+
+    sem_t *sem = sem_open(SEM_NAME, 0);
+    if (sem == SEM_FAILED) {
+        perror("Error opening semaphore");
+        exit(EXIT_FAILURE);
+    }
+
+    while (1) {
+        sem_wait(sem);
+        
+        if (data->ready) {
+            int num = data->number;
+            data->ready = 0; // Reset ready flag
 
             if (num < 0 || is_prime(num)) {
                 exit(EXIT_SUCCESS);
             }
 
             if (!is_prime(num)) {
-                char output[32];
-                int len = snprintf(output, sizeof(output), "%d\n", num);
-                write(STDOUT_FILENO, output, len);
+                data->result = num;
+                data->result_ready = 1; // Indicate result is ready
             }
-
-            while (ptr < buf + bytes_read && *ptr != '\n') {
-                ptr++;
-            }
-            ptr++;
         }
+
+        sem_post(sem);
+        usleep(100); // Sleep briefly to avoid busy waiting
     }
 
+    munmap(data, sizeof(struct shared_data));
+    close(shm_fd);
+    sem_close(sem);
     return 0;
 }
 
@@ -48,7 +64,7 @@ int is_prime(int num) {
 
     if (num % 2 == 0 || num % 3 == 0)
         return 0;
-		
+
     for (int i = 5; i * i <= num; i += 6)
         if (num % i == 0 || num % (i + 2) == 0)
             return 0;

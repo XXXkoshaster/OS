@@ -1,13 +1,9 @@
-#ifndef __CHILD_H__
-#define __CHILD_H__
+#ifndef CHILD_H
+#define CHILD_H
 
 #include <stdint.h>
-#include <stdbool.h>
-#include <stdlib.h>
-#include <unistd.h>
-#include <fcntl.h>
-#include <stdio.h>
 
+void process_data_from_shared_memory(int shm_id, int sem_id);
 int is_prime(int num);
 
-#endif
+#endif // CHILD_H
