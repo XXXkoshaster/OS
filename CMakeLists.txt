@@ -21,3 +21,4 @@ message("Labs build compiler flags: " ${CMAKE_C_FLAGS})
 
 add_subdirectory(LAB_1)
 add_subdirectory(LAB_2)
+add_subdirectory(LAB_3)
