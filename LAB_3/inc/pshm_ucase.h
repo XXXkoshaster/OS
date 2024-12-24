@@ -25,5 +25,7 @@ void create_shared_memory(const char *shmpath, struct shmbuf **shmp);
 void cleanup_shared_memory(const char *shmpath, struct shmbuf *shmp);
 void wait_for_child(struct shmbuf *shmp);
 void signal_parent(struct shmbuf *shmp);
+void wait_for_parent(struct shmbuf *shmp);
+void signal_child(struct shmbuf *shmp);
 
 #endif  // include guard

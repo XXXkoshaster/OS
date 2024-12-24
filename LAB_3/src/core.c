@@ -3,7 +3,7 @@
 #include <stdlib.h>
 #include <sys/mman.h>
 #include <unistd.h>
-#include "pshm_ucase.h"
+#include "../inc/pshm_ucase.h"
 
 void create_shared_memory(const char *shmpath, struct shmbuf **shmp) {
     // Удаление объекта общей памяти, если он уже существует
@@ -53,13 +53,20 @@ void cleanup_shared_memory(const char *shmpath, struct shmbuf *shmp) {
 }
 
 void wait_for_child(struct shmbuf *shmp) {
-    if (sem_wait(shmp->sem1) == -1) {
-        errExit("sem_wait-sem1");
-    }
+    if (sem_wait(shmp->sem2) == -1) 
+        errExit("sem_wait-sem2");
 }
 
+void wait_for_parent(struct shmbuf *shmp) {
+    if (sem_wait(shmp->sem1) == -1) 
+        errExit("sem_wait-sem1");
+}
 void signal_parent(struct shmbuf *shmp) {
-    if (sem_post(shmp->sem2) == -1) {
+    if (sem_post(shmp->sem2) == -1) 
         errExit("sem_post-sem2");
-    }
+}
+
+void signal_child(struct shmbuf *shmp) {
+    if (sem_post(shmp->sem1) == -1) 
+        errExit("sem_post-sem1");
 }

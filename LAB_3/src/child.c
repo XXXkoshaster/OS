@@ -31,43 +31,32 @@ int main(int argc, char *argv[]) {
 
     // Подключение к сегменту общей памяти
     int fd = shm_open(shmpath, O_RDWR, 0);
-    if (fd == -1) {
-        perror("shm_open");
-        exit(EXIT_FAILURE);
-    }
+    if (fd == -1) 
+        errExit("shm_open");
+    
 
     shmp = mmap(NULL, sizeof(*shmp), PROT_READ | PROT_WRITE, MAP_SHARED, fd, 0);
-    if (shmp == MAP_FAILED) {
-        perror("mmap");
-        exit(EXIT_FAILURE);
-    }
+    if (shmp == MAP_FAILED) 
+        errExit("mmap");
 
     // Перенаправление стандартного ввода на файл
     FILE *file = freopen(filename, "r", stdin);
-    if (file == NULL) {
-        perror("freopen");
-        exit(EXIT_FAILURE);
-    }
+    if (file == NULL) 
+        errExit("freopen");
 
     // Проверка, является ли файл пустым
     fseek(file, 0, SEEK_END);
     if (ftell(file) == 0) {
         printf("Дочерний процесс: файл пустой, завершение\n");
         shmp->cnt = 0; // Сигнализируем о завершении
-        if (sem_post(shmp->sem2) == -1) {
-            perror("sem_post");
-            exit(EXIT_FAILURE);
-        }
+        signal_parent(shmp);
         exit(EXIT_SUCCESS);
     }
     fseek(file, 0, SEEK_SET); // Возвращаемся в начало файла
 
     // Ожидание сигнала от родительского процесса
     printf("Дочерний процесс: ожидание семафора 1\n");
-    if (sem_wait(shmp->sem1) == -1) {
-        perror("sem_wait");
-        exit(EXIT_FAILURE);
-    }
+    wait_for_parent(shmp);
 
     printf("Дочерний процесс: чтение из стандартного ввода\n");
     char line[256];
@@ -79,25 +68,17 @@ int main(int argc, char *argv[]) {
         if (num < 0 || is_prime(num)) {
             printf("Дочерний процесс: %d    простое, завершение\n", num);
             shmp->cnt = 0; // Сигнализируем о завершении
-            if (sem_post(shmp->sem2) == -1) {
-                perror("sem_post");
-                exit(EXIT_FAILURE);
-            }
+            signal_parent(shmp);
+
             exit(EXIT_SUCCESS);
         } else {
             printf("Дочерний процесс: %d составное, запись в общую память\n", num);
             shmp->cnt = snprintf(shmp->buf, sizeof(shmp->buf), "%d\n", num);
-            if (sem_post(shmp->sem2) == -1) {
-                perror("sem_post");
-                exit(EXIT_FAILURE);
-            }
+            signal_parent(shmp);
 
             // Ожидание, пока родительский процесс прочитает данные
             printf("Дочерний процесс: ожидание семафора 1 для продолжения\n");
-            if (sem_wait(shmp->sem1) == -1) {
-                perror("sem_wait");
-                exit(EXIT_FAILURE);
-            }
+            wait_for_parent(shmp);
         }
     }
 
