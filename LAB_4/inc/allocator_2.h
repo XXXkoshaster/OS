@@ -3,11 +3,29 @@
 
 #include <stddef.h>
 
-typedef struct Allocator Allocator;
+#define NUM_FREE_LISTS 20
 
-Allocator* allocator_create(void* const memory, const size_t size);
-void allocator_destroy(Allocator* const allocator);
-void* allocator_alloc(Allocator* const allocator, const size_t size);
-void allocator_free(Allocator* const allocator, void* const memory);
+#define NDX(size) \
+    ((size) > 128 \
+        ? (size) > 256 ? 4 : 3 \
+        : (size) > 64 \
+            ? 2 \
+            : (size) > 32 ? 1 : 0)
+
+struct FreeBlock {
+    size_t size;
+    struct FreeBlock* next;
+};
+
+struct Allocator {
+    void* base_memory;
+    size_t memory_size;
+    struct FreeBlock* freelists[NUM_FREE_LISTS + 1];
+};
+
+struct Allocator* allocator_create(void* memory, size_t size);
+void allocator_destroy(struct Allocator* allocator);
+void* allocator_alloc(struct Allocator* allocator, size_t size);
+void allocator_free(struct Allocator* allocator, void* memory);
 
 #endif // ALLOCATOR2_H
