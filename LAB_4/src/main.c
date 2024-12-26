@@ -200,6 +200,16 @@ int main(int argc, char **argv) {
         }
     }
 
+    // Дополнительные тесты для проверки объединения блоков
+    // Освобождение block3 и block4
+    if (block3) {
+        allocator_free_func(allocator, block3);
+        printf("Освобожден block3 по адресу %p\n", block3);
+    }
+    if (block4) {
+        allocator_free_func(allocator, block4);
+        printf("Освобожден block4 по адресу %p\n", block4);
+    }
     // Выделение 300 байт
     clock_gettime(CLOCK_MONOTONIC, &start);
     void* block5 = allocator_alloc_func(allocator, 300);

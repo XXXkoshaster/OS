@@ -10,6 +10,13 @@
 // Количество списков свободных блоков
 #define NUM_FREE_LISTS 5
 
+#define NDX(size) \
+    (size) > 128 \
+        ? (size) > 256 ? 4 : 3 \
+        : (size) > 64 \
+            ? 2 \
+            : (size) > 32 ? 1 : 0
+
 // Заголовок свободного блока
 struct FreeBlock {
     size_t size;                // Размер блока
@@ -25,14 +32,6 @@ struct Allocator {
     size_t remaining_size;
     struct FreeBlock* freelist[NUM_FREE_LISTS + 1];
 };
-
-// Макрос для определения индекса в массиве freelist
-#define NDX(size) \
-    (size) > 128 \
-        ? (size) > 256 ? 4 : 3 \
-        : (size) > 64 \
-            ? 2 \
-            : (size) > 32 ? 1 : 0
 
 // Инициализация списков свободных блоков
 void allocator_init(struct Allocator* allocator);
